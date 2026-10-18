@@ -1,0 +1,115 @@
+pipeline:
+  name: instrument_daily_metrics
+  version: "1.0"
+
+source:
+  type: csv
+  path: data/input/instruments.csv
+  columns:
+    instrument_id: string
+    trade_date: date
+    price: decimal(18,6)
+    volume: decimal(18,4)
+    currency: string
+
+data_quality:
+  normalization:
+    trim_columns:
+      - instrument_id
+      - currency
+    uppercase_columns:
+      - currency
+    date_formats:
+      - yyyy-MM-dd
+      - MM/dd/yyyy
+
+  input_rules:
+    - column: instrument_id
+      check: not_null
+    - column: trade_date
+      check: not_null
+    - column: price
+      check: not_null
+    - column: volume
+      check: positive
+
+  duplicates:
+    action: remove_and_report
+
+  on_failure: quarantine
+
+currency_conversion:
+  target_currency: USD
+  rates_path: data/reference/fx_rates.csv
+  on_missing_rate: quarantine
+
+transformations:
+  - name: filter_valid_records
+    type: filter
+    condition:
+      column: price
+      operator: gt
+      value: 0
+
+  - name: calculate_notional
+    type: expression
+    output_column: notional
+    expression:
+      function: multiply
+      inputs:
+        - column: price
+        - column: volume
+
+  - name: daily_aggregates
+    type: aggregate
+    group_by:
+      - instrument_id
+      - trade_date
+    aggregations:
+      - column: notional
+        function: sum
+        alias: total_notional
+      - column: price
+        function: avg
+        alias: avg_price
+      - column: volume
+        function: sum
+        alias: total_volume
+      - column: currency
+        function: first
+        alias: currency
+
+  - name: calculate_vwap
+    type: expression
+    output_column: vwap
+    expression:
+      function: divide
+      inputs:
+        - column: total_notional
+        - column: total_volume
+
+  - name: add_processing_metadata
+    type: expression
+    output_column: processed_at
+    expression:
+      function: current_timestamp
+
+output:
+  columns:
+    - instrument_id
+    - trade_date
+    - currency
+    - total_notional
+    - avg_price
+    - total_volume
+    - vwap
+    - processed_at
+  # One CSV file with a header; replaced on every run.
+  path: output/processed_instruments.csv
+
+validation:
+  rules:
+    - column: vwap
+      check: not_null
+    - column: total_volume
+      check: positive

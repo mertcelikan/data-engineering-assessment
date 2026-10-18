@@ -1,0 +1,30 @@
+# Version control and editors
+.git
+.gitignore
+.idea
+.vscode
+.cursor
+.DS_Store
+
+# Python environments and caches
+.venv
+.tools
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.coverage
+htmlcov
+
+# Generated artifacts
+output
+spark-warehouse
+metastore_db
+derby.log
+*.log
+
+# Not needed in the image
+Dockerfile
+.dockerignore
+*.md
