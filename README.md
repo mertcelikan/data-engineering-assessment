@@ -1,4 +1,4 @@
-# Instrument Data Pipeline
+# Data Pipeline
 
 A YAML-driven PySpark pipeline that turns raw instrument trades into daily metrics (notional, average price, volume, VWAP). Transformations, data quality rules and output are configuration; the engine is generic.
 
